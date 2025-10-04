@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Vaccination Tracker</title>
+  <style>
+    body { font-family: Arial, sans-serif; background:#f0f4f8; margin:0; }
+    header { background:#2563eb; color:white; padding:15px; display:flex; justify-content:space-between; align-items:center; }
+    .container { max-width:900px; margin:20px auto; background:#fff; padding:20px; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.1); }
+    form input, form textarea, form button { width:100%; padding:8px; margin-bottom:10px; border:1px solid #ddd; border-radius:6px; }
+    form button { background:#16a34a; color:white; border:none; cursor:pointer; }
+    table { width:100%; border-collapse:collapse; margin-top:10px; }
+    th,td { border:1px solid #ddd; padding:10px; font-size:14px; }
+    th { background:#f1f5f9; }
+    .actions button { padding:5px 10px; border:none; border-radius:4px; cursor:pointer; margin:2px; }
+    .delete-btn { background:#ef4444; color:white; }
+    .edit-btn { background:#2563eb; color:white; }
+    .export-btn { background:#4b95ff; padding:10px; border:none; border-radius:6px; color:white; margin-top:10px; cursor:pointer; }
+    #searchBar { width:100%; padding:8px; border:1px solid #bbb; border-radius:6px; margin:10px 0; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Vaccination Tracker</h1>
+    <div>
+      <span id="welcomeMsg"></span>
+      <button onclick="logout()" style="background:#ef4444;padding:8px 12px;border:none;border-radius:6px;color:white;cursor:pointer">Logout</button>
+    </div>
+  </header>
+
+  <div class="container">
+    <h2 id="formTitle">Add Vaccination Record</h2>
+    <form id="vaccineForm">
+      <input type="text" id="name" placeholder="Recipient Name" required>
+      <input type="text" id="vaccine" placeholder="Vaccine (e.g., COVID-19)" required>
+      <input type="text" id="dose" placeholder="Dose (e.g., 1st, 2nd)">
+      <input type="date" id="date" required>
+      <input type="text" id="facility" placeholder="Facility">
+      <textarea id="notes" placeholder="Notes"></textarea>
+      <button type="submit" id="submitBtn">Add Record</button>
+    </form>
+
+    <h2>Records</h2>
+    <input type="text" id="searchBar" placeholder="Search records (by name, vaccine, dose, facility, notes)...">
+
+    <table id="recordsTable">
+      <thead>
+        <tr>
+          <th>Name</th><th>Vaccine</th><th>Dose</th><th>Date</th>
+          <th>Facility</th><th>Notes</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <button class="export-btn" id="exportCSV">Export to CSV</button>
+  </div>
+
+  <script>
+    // --- Check login ---
+    const currentUser = localStorage.getItem('loggedInUser');
+    if(!currentUser){ window.location = 'login.html'; }
+
+    document.getElementById("welcomeMsg").textContent = "Welcome, " + currentUser;
+
+    const form = document.getElementById('vaccineForm');
+    const tableBody = document.querySelector('#recordsTable tbody');
+    const exportBtn = document.getElementById('exportCSV');
+    const formTitle = document.getElementById('formTitle');
+    const submitBtn = document.getElementById('submitBtn');
+    const searchBar = document.getElementById('searchBar');
+
+    let records = JSON.parse(localStorage.getItem(`vaccinationRecords_${currentUser}`) || '[]');
+    let editIndex = null;
+
+    function renderRecords(filter=""){
+      tableBody.innerHTML='';
+      const filtered = records.filter(r =>
+        Object.values(r).some(val => 
+          String(val).toLowerCase().includes(filter.toLowerCase())
+        )
+      );
+
+      filtered.forEach((r,i)=>{
+        const row=document.createElement('tr');
+        row.innerHTML=`
+          <td>${r.name}</td><td>${r.vaccine}</td><td>${r.dose}</td>
+          <td>${r.date}</td><td>${r.facility}</td><td>${r.notes}</td>
+          <td class="actions">
+            <button class="edit-btn" onclick="editRecord(${records.indexOf(r)})">Edit</button>
+            <button class="delete-btn" onclick="deleteRecord(${records.indexOf(r)})">Delete</button>
+          </td>`;
+        tableBody.appendChild(row);
+      });
+    }
+
+    form.addEventListener('submit',e=>{
+      e.preventDefault();
+      const rec={
+        name:document.getElementById('name').value,
+        vaccine:document.getElementById('vaccine').value,
+        dose:document.getElementById('dose').value,
+        date:document.getElementById('date').value,
+        facility:document.getElementById('facility').value,
+        notes:document.getElementById('notes').value
+      };
+
+      if(editIndex !== null){
+        records[editIndex] = rec;
+        editIndex = null;
+        formTitle.textContent = "Add Vaccination Record";
+        submitBtn.textContent = "Add Record";
+      } else {
+        records.push(rec);
+      }
+
+      localStorage.setItem(`vaccinationRecords_${currentUser}`, JSON.stringify(records));
+      renderRecords(searchBar.value);
+      form.reset();
+    });
+
+    function deleteRecord(i){
+      records.splice(i,1);
+      localStorage.setItem(`vaccinationRecords_${currentUser}`, JSON.stringify(records));
+      renderRecords(searchBar.value);
+    }
+
+    function editRecord(i){
+      const r = records[i];
+      document.getElementById('name').value = r.name;
+      document.getElementById('vaccine').value = r.vaccine;
+      document.getElementById('dose').value = r.dose;
+      document.getElementById('date').value = r.date;
+      document.getElementById('facility').value = r.facility;
+      document.getElementById('notes').value = r.notes;
+
+      editIndex = i;
+      formTitle.textContent = "Edit Vaccination Record";
+      submitBtn.textContent = "Update Record";
+    }
+
+    searchBar.addEventListener('input', ()=> renderRecords(searchBar.value));
+
+    exportBtn.addEventListener('click',()=>{
+      if(records.length===0){ alert('No data'); return; }
+      let csv='Name,Vaccine,Dose,Date,Facility,Notes\n';
+      records.forEach(r=>{
+        csv+=`"${r.name}","${r.vaccine}","${r.dose}","${r.date}","${r.facility}","${r.notes}"\n`;
+      });
+      const blob=new Blob([csv],{type:'text/csv'});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      a.href=url; a.download='vaccination_records.csv'; a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    function logout(){ 
+      localStorage.removeItem('loggedInUser'); 
+      window.location='vlogin.html'; 
+    }
+
+    renderRecords();
+  </script>
+</body>
+</html>

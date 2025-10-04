@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sign Up - Vaccination Tracker</title>
+  <style>
+    body { font-family: Arial, sans-serif; background:#f0f4f8; display:flex; justify-content:center; align-items:center; height:100vh; }
+    .box { background:#fff; padding:20px; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.1); width:300px; }
+    input, button { width:100%; padding:10px; margin:8px 0; border:1px solid #ddd; border-radius:6px; }
+    button { background:#16a34a; color:#fff; border:none; cursor:pointer; }
+    a { color:#2563eb; text-decoration:none; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h2>Sign Up</h2>
+    <input type="text" id="username" placeholder="Choose Username" required>
+    <input type="password" id="password" placeholder="Choose Password" required>
+    <button onclick="signup()">Sign Up</button>
+    <p>Already have an account? <a href="vlogin.html">Login</a></p>
+  </div>
+
+  <script>
+    function signup(){
+      const user = document.getElementById('username').value.trim();
+      const pass = document.getElementById('password').value;
+      if(!user || !pass){ alert('Fill all fields'); return; }
+
+      let users = JSON.parse(localStorage.getItem('users') || '{}');
+      if(users[user]){ alert('User already exists'); return; }
+
+      users[user] = pass; 
+      localStorage.setItem('users', JSON.stringify(users));
+      alert('Signup successful! Please login.');
+      window.location = "vlogin.html";
+    }
+  </script>
+</body>
+</html>
